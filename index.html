@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobiles Cocktailgewerbe - Kassensystem</title>
+    <title>Mobiles Cocktailgewerbe - Kassensystem Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -35,7 +35,7 @@
         .view { display: none; }
         .view.active { display: block; }
         
-        h3 { margin: 15px 0 8px 0; font-size: 1.1rem; border-left: 4px solid #cbd5e0; padding-left: 8px; }
+        h3 { margin: 20px 0 8px 0; font-size: 1.1rem; border-left: 4px solid #cbd5e0; padding-left: 8px; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
         @media(min-width: 600px) { .grid { grid-template-columns: repeat(3, 1fr); } }
         
@@ -52,6 +52,16 @@
         .total-display { font-size: 2.2rem; font-weight: 800; text-align: center; margin-bottom: 12px; color: #1a202c; }
         .btn-submit { background-color: var(--confirm-color); color: white; width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 1.3rem; font-weight: bold; cursor: pointer; }
         
+        /* PAY MODAL OVERLAY */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; padding: 15px; }
+        .modal-content { background: white; padding: 20px; border-radius: 20px; width: 100%; max-width: 450px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .pay-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .btn-paytype { padding: 15px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; background: white; }
+        .btn-paytype.active { border-color: #3182ce; background: #ebf8ff; color: #2b6cb0; }
+        .pay-input { width: 100%; padding: 10px; font-size: 1.2rem; font-weight: bold; text-align: center; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 10px; background: #f7fafc; }
+        .pay-input:focus { background: white; }
+        .calc-display { background: #edf2f7; padding: 12px; border-radius: 8px; text-align: center; font-size: 1.1rem; margin-bottom: 15px; font-weight: 600; }
+        
         .order-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border: 1px solid var(--border-color); border-left: 6px solid var(--primary-alk); display: flex; justify-content: space-between; align-items: center; }
         .order-card.af { border-left-color: var(--primary-free); }
         .order-card.wein { border-left-color: var(--primary-wine); }
@@ -60,14 +70,20 @@
         .order-time { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
         .btn-done { background: var(--confirm-color); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
         
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
-        .stat-card { background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
-        .stat-label { font-size: 0.85rem; color: #718096; font-weight: 600; }
-        .stat-val { font-size: 1.5rem; font-weight: bold; color: #1a202c; margin-top: 5px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+        @media(min-width: 600px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+        .stat-card { background: white; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
+        .stat-label { font-size: 0.8rem; color: #718096; font-weight: 600; }
+        .stat-val { font-size: 1.3rem; font-weight: bold; color: #1a202c; margin-top: 5px; }
         
-        .stats-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); }
+        .stats-table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); margin-bottom: 20px; }
         .stats-table th, .stats-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); }
         .stats-table th { background: #1a202c; color: white; font-size: 0.9rem; }
+        
+        .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
+        .badge-open { background: #feebc8; color: #c05621; }
+        .badge-done { background: #c6f6d5; color: #22543d; }
+        .btn-reopen { background: #3182ce; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -75,23 +91,17 @@
     <div id="setup-screen" class="setup-container">
         <div class="setup-title">Supabase Live-Verbindung</div>
         <p style="font-size: 0.85rem; color: #4a5568; line-height: 1.4; margin-bottom: 15px;">
-            Trage hier deine Supabase-Projektdaten ein, damit Kasse, Mixer-Tablet und Statistik über deinen Handy-Hotspot in Echtzeit verschmelzen.
+            Trage deine Daten ein, um die Kasse mit Bar- und Mixstation zu synchronisieren.
         </p>
-        <div class="form-group">
-            <label>Project URL</label>
-            <input type="text" id="sup-url" placeholder="https://xyz.supabase.co" autocomplete="off">
-        </div>
-        <div class="form-group">
-            <label>Anon API Key</label>
-            <input type="text" id="sup-key" placeholder="eyJhbGciOi..." autocomplete="off">
-        </div>
-        <button class="btn-connect" onclick="initializeSupabase()">Verbindung herstellen & App starten</button>
+        <div class="form-group"> <label>Project URL</label> <input type="text" id="sup-url" placeholder="https://xyz.supabase.co"> </div>
+        <div class="form-group"> <label>Anon API Key</label> <input type="text" id="sup-key" placeholder="eyJhbGciOi..."> </div>
+        <button class="btn-connect" onclick="initializeSupabase()">App starten</button>
     </div>
 
     <div id="app-content">
         <div class="nav">
             <button id="nav-kasse" class="active" onclick="switchView('kasse')">🛒 Kasse</button>
-            <button id="nav-bar" onclick="switchView('bar')">🍸 Bar (Mixer)</button>
+            <button id="nav-bar" onclick="switchView('bar')">🍸 Bar (<span id="bar-count-badge">0</span>)</button>
             <button id="nav-stats" onclick="switchView('stats')">📊 Statistik</button>
         </div>
 
@@ -121,57 +131,73 @@
 
             <h3>Pfand-Ausgleich</h3>
             <div class="grid">
-                <button class="btn btn-pfand" onclick="addPfandReturn()">↩️ Becher zurück: 1x Pfand abziehen (-2,00 €)</button>
+                <button class="btn btn-pfand" onclick="addPfandReturn()">Becher zurück: 1x Pfand abziehen (-2,00 €)</button>
                 <button class="btn btn-reset" onclick="clearBasket()">❌ Reset</button>
             </div>
 
             <div class="kassen-footer">
                 <div class="basket-preview" id="basket-preview">Warenkorb ist leer</div>
                 <div class="total-display" id="total-display">0,00 €</div>
-                <button class="btn btn-submit" id="submit-btn" onclick="submitOrder()">✔️ Bestätigen & Funk Senden</button>
+                <button class="btn btn-submit" onclick="openPayModal()">✔️ Bezahlen & Senden</button>
+            </div>
+        </div>
+
+        <div id="pay-modal" class="modal">
+            <div class="modal-content">
+                <h3 style="margin-top:0; border-left-color:#3182ce;">Abkassieren & Rückgeld</h3>
+                <div style="font-size:1.1rem; margin-bottom:10px;">Zu zahlen: <b id="modal-solltotal">0,00 €</b></div>
+                
+                <label style="font-weight:bold; font-size:0.9rem; display:block; margin-bottom:5px;">Zahlungsart:</label>
+                <div class="pay-type-grid">
+                    <button class="btn-paytype active" id="paytype-bar" onclick="setPayType('bar')">💵 Bargeld</button>
+                    <button class="btn-paytype" id="paytype-card" onclick="setPayType('card')">💳 Karte</button>
+                </div>
+
+                <div class="form-group">
+                    <label id="label-isttotal">Wie viel will der Gast zahlen? (Inkl. Trinkgeld)</label>
+                    <input type="number" step="0.50" id="input-isttotal" class="pay-input" oninput="calculateChange()">
+                </div>
+
+                <div class="form-group" id="group-gegeben">
+                    <label>Gegebener Geldschein/Betrag (Rückgeld-Rechner)</label>
+                    <input type="number" step="5" id="input-gegeben" class="pay-input" oninput="calculateChange()" placeholder="z.B. 50">
+                </div>
+
+                <div class="calc-display" id="calc-output">Trinkgeld: 0,00 €<br>Wechselgeld: 0,00 €</div>
+
+                <div style="display:flex; gap:10px;">
+                    <button class="btn-submit" style="background:#718096; font-size:1rem; padding:12px;" onclick="closePayModal()">Abbrechen</button>
+                    <button class="btn-submit" id="submit-btn" style="flex:2; font-size:1rem; padding:12px;" onclick="submitOrder()">Abschließen & Funken</button>
+                </div>
             </div>
         </div>
 
         <div id="view-bar" class="view">
             <h2 style="margin-top: 10px; font-size: 1.4rem;">Offene Mix-Bestellungen</h2>
-            <div id="orders-container">
-                <p style="color: #718096; text-align: center; margin-top: 40px; font-style: italic;">Aktuell keine Bestellungen. Zeit zum Durchatmen! 🌴</p>
-            </div>
+            <div id="orders-container"></div>
         </div>
 
         <div id="view-stats" class="view">
             <h2 style="margin-top: 10px; font-size: 1.4rem;">Live-Event-Auswertung</h2>
             <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-label">Geldbeutel-Soll (Brutto)</div>
-                    <div class="stat-val" id="stat-brutto" style="color: var(--confirm-color);">0,00 €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Reiner Umsatz (Netto)</div>
-                    <div class="stat-val" id="stat-netto">0,00 €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Pfand-Geld im Umlauf</div>
-                    <div class="stat-val" id="stat-pfand" style="color: var(--pfand-color);">0,00 €</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Zurückgegebene Becher</div>
-                    <div class="stat-val" id="stat-becher-ret">0</div>
-                </div>
+                <div class="stat-card"> <div class="stat-label">Umsatz Bar (Soll)</div> <div class="stat-val" id="stat-bar" style="color: var(--confirm-color);">0,00 €</div> </div>
+                <div class="stat-card"> <div class="stat-label">Umsatz Karte (SumUp)</div> <div class="stat-val" id="stat-card">0,00 €</div> </div>
+                <div class="stat-card"> <div class="stat-label">Trinkgeld BAR 💵</div> <div class="stat-val" id="stat-tip-bar" style="color:#2b6cb0;">0,00 €</div> </div>
+                <div class="stat-card"> <div class="stat-label">Trinkgeld KARTE 💳</div> <div class="stat-val" id="stat-tip-card" style="color:#2b6cb0;">0,00 €</div> </div>
+                <div class="stat-card"> <div class="stat-label">Getränke rein (Netto)</div> <div class="stat-val" id="stat-netto">0,00 €</div> </div>
+                <div class="stat-card"> <div class="stat-label">Pfand im Umlauf</div> <div class="stat-val" id="stat-pfand" style="color: var(--pfand-color);">0,00 €</div> </div>
             </div>
 
             <h3 style="border-left-color: #1a202c;">Strichliste Getränke</h3>
             <table class="stats-table">
-                <thead>
-                    <tr>
-                        <th>Getränk</th>
-                        <th style="text-align: center;">Menge</th>
-                        <th style="text-align: right;">Umsatz</th>
-                    </tr>
-                </thead>
-                <tbody id="stats-table-body">
-                    <tr><td colspan="3" style="color: #a0aec0; text-align: center;">Noch keine Daten vorhanden</td></tr>
-                </tbody>
+                <thead> <tr> <th>Getränk</th> <th style="text-align: center;">Menge</th> <th style="text-align: right;">Umsatz</th> </tr> </thead>
+                <tbody id="stats-table-body"></tbody>
+            </table>
+
+            <h3 style="border-left-color: #3182ce;">📋 Verlauf aller Bestellungen</h3>
+            <table class="stats-table">
+                <thead> <tr> <th>Uhrzeit</th> <th>Getränke</th> <th>Status / Aktion</th> </tr> </thead>
+                <tbody id="history-table-body"></tbody>
             </table>
         </div>
     </div>
@@ -181,7 +207,9 @@
         let basket = { items: {}, pfandReturns: 0, total: 0 };
         let supabaseClient = null;
         let currentOrders = [];
+        let allHistoryOrders = [];
         let globalTransactions = [];
+        let selectedPayType = 'bar';
 
         document.addEventListener("DOMContentLoaded", () => {
             const savedUrl = localStorage.getItem("supabase_url");
@@ -195,25 +223,14 @@
         function initializeSupabase() {
             const url = document.getElementById("sup-url").value.trim();
             const key = document.getElementById("sup-key").value.trim();
-            
-            if (!url || !key) {
-                alert("Bitte gib sowohl die Projekt-URL als auch den Anon Key ein!");
-                return;
-            }
-
+            if (!url || !key) { alert("Zugangsdaten unvollständig!"); return; }
             try {
                 supabaseClient = supabase.createClient(url, key);
-                localStorage.setItem("supabase_url", url);
-                localStorage.setItem("supabase_key", key);
-                
+                localStorage.setItem("supabase_url", url); localStorage.setItem("supabase_key", key);
                 document.getElementById("setup-screen").style.display = "none";
                 document.getElementById("app-content").style.display = "block";
-                
-                startRealtimeSync();
-                loadData();
-            } catch (error) {
-                alert("Verbindungsfehler: " + error.message);
-            }
+                startRealtimeSync(); loadData();
+            } catch (e) { alert("Fehler: " + e.message); }
         }
 
         function switchView(viewName) {
@@ -226,10 +243,8 @@
 
         function addItem(name, price, category) {
             if (!basket.items[name]) basket.items[name] = { count: 0, price: price, category: category };
-            basket.items[name].count++;
-            updateDisplay();
+            basket.items[name].count++; updateDisplay();
         }
-
         function addPfandReturn() { basket.pfandReturns++; updateDisplay(); }
         function clearBasket() { basket = { items: {}, pfandReturns: 0, total: 0 }; updateDisplay(); }
 
@@ -247,10 +262,46 @@
             document.getElementById('basket-preview').innerText = previewText.length > 0 ? previewText.join(', ') : "Warenkorb ist leer";
         }
 
-        async function submitOrder() {
+        // RECHNER LOGIK
+        function openPayModal() {
             if (Object.keys(basket.items).length === 0 && basket.pfandReturns === 0) return;
+            document.getElementById('modal-solltotal').innerText = basket.total.toFixed(2).replace('.', ',') + " €";
+            document.getElementById('input-isttotal').value = basket.total;
+            document.getElementById('input-gegeben').value = "";
+            setPayType('bar');
+            calculateChange();
+            document.getElementById('pay-modal').style.display = 'flex';
+        }
+        function closePayModal() { document.getElementById('pay-modal').style.display = 'none'; }
+
+        function setPayType(type) {
+            selectedPayType = type;
+            document.getElementById('paytype-bar').classList.toggle('active', type === 'bar');
+            document.getElementById('paytype-card').classList.toggle('active', type === 'card');
+            document.getElementById('group-gegeben').style.display = type === 'bar' ? 'block' : 'none';
+            calculateChange();
+        }
+
+        function calculateChange() {
+            let soll = basket.total;
+            let ist = parseFloat(document.getElementById('input-isttotal').value) || soll;
+            let gegeben = parseFloat(document.getElementById('input-gegeben').value) || ist;
+            
+            let trinkgeld = Math.max(0, ist - soll);
+            let wechselgeld = Math.max(0, gegeben - ist);
+
+            let out = `Trinkgeld: ${trinkgeld.toFixed(2).replace('.', ',')} €`;
+            if (selectedPayType === 'bar') {
+                out += `<br><span style="font-size:1.3rem; color:var(--pfand-color);">Wechselgeld: <b>${wechselgeld.toFixed(2).replace('.', ',')} €</b></span>`;
+            }
+            document.getElementById('calc-output').innerHTML = out;
+        }
+
+        async function submitOrder() {
             const btn = document.getElementById('submit-btn');
-            btn.disabled = true; btn.innerText = "Wird gesendet...";
+            btn.disabled = true; btn.innerText = "Sende...";
+            let istTotal = parseFloat(document.getElementById('input-isttotal').value) || basket.total;
+            let tip = Math.max(0, istTotal - basket.total);
 
             try {
                 const transactionRows = []; const orderItemsText = []; let mainCategory = 'alk';
@@ -261,17 +312,21 @@
                     transactionRows.push({
                         item_name: name, quantity: item.count, item_price: item.price,
                         pfand_collected: item.count * PFAND_WERT, pfand_returned: 0,
-                        total_brutto: item.count * (item.price + PFAND_WERT)
+                        total_brutto: item.count * (item.price + PFAND_WERT),
+                        description: selectedPayType, // Speichert bar/card trickreich ab
+                        status: tip.toString() // Speichert das anteilige Trinkgeld ab (wird unten verarbeitet)
                     });
                 }
                 if (basket.pfandReturns > 0) {
                     transactionRows.push({
                         item_name: "⚠️ Reine Pfandrückgabe", quantity: basket.pfandReturns, item_price: 0,
                         pfand_collected: 0, pfand_returned: basket.pfandReturns * PFAND_WERT,
-                        total_brutto: -(basket.pfandReturns * PFAND_WERT)
+                        total_brutto: -(basket.pfandReturns * PFAND_WERT), description: selectedPayType, status: "0"
                     });
                 }
                 if (transactionRows.length > 0) {
+                    // Falls reines Trinkgeld ohne Items gegeben wurde (Sonderfall abfangen)
+                    if(transactionRows.length === 1 && basket.pfandReturns > 0) { transactionRows[0].status = tip.toString(); }
                     const { error: txError } = await supabaseClient.from('cocktail_transactions').insert(transactionRows);
                     if (txError) throw txError;
                 }
@@ -281,17 +336,18 @@
                     }]);
                     if (orderError) throw orderError;
                 }
-                clearBasket();
-            } catch (err) {
-                alert("Fehler beim Senden: " + err.message);
-            } finally { btn.disabled = false; btn.innerText = "✔️ Bestätigen & Funk Senden"; }
+                closePayModal(); clearBasket();
+            } catch (err) { alert("Fehler: " + err.message); }
+            finally { btn.disabled = false; btn.innerText = "Abschließen & Funken"; }
         }
 
         async function completeOrder(orderId) {
-            try {
-                const { error } = await supabaseClient.from('cocktail_orders').update({ status: 'done' }).eq('id', orderId);
-                if (error) throw error;
-            } catch (err) { alert("Fehler beim Abschließen: " + err.message); }
+            await supabaseClient.from('cocktail_orders').update({ status: 'done' }).eq('id', orderId);
+        }
+
+        // NEU: Reaktivieren Funktion
+        async function reopenOrder(orderId) {
+            await supabaseClient.from('cocktail_orders').update({ status: 'open' }).eq('id', orderId);
         }
 
         async function loadData() {
@@ -299,10 +355,16 @@
             try {
                 const { data: orders } = await supabaseClient.from('cocktail_orders').select('*').eq('status', 'open').order('created_at', { ascending: true });
                 currentOrders = orders || []; renderBar();
+                document.getElementById('bar-count-badge').innerText = currentOrders.length;
+
+                const { data: historyOrders } = await supabaseClient.from('cocktail_orders').select('*').order('created_at', { ascending: false }).limit(40);
+                allHistoryOrders = historyOrders || [];
+
                 const { data: txs } = await supabaseClient.from('cocktail_transactions').select('*');
                 globalTransactions = txs || [];
+                
                 if (document.getElementById('view-stats').classList.contains('active')) calculateAndRenderStats();
-            } catch (err) { console.error(err); }
+            } catch (e) { console.error(e); }
         }
 
         function startRealtimeSync() {
@@ -323,39 +385,69 @@
                 const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 container.innerHTML += `
                     <div class="order-card ${order.category || 'alk'}">
-                        <div class="order-info">
-                            <div class="order-items">${order.description}</div>
-                            <div class="order-time">Eingegangen um ${timeStr} Uhr</div>
-                        </div>
+                        <div class="order-info"> <div class="order-items">${order.description}</div> <div class="order-time">Um ${timeStr} Uhr</div> </div>
                         <button class="btn-done" onclick="completeOrder(${order.id})">✔ Fertig</button>
-                    </div>
-                `;
+                    </div>`;
             });
         }
 
         function calculateAndRenderStats() {
-            let totalBrutto = 0; let totalNetto = 0; let pfandCollected = 0; let pfandReturned = 0; let itemSummary = {};
+            let salesBar = 0; let salesCard = 0; let tipBar = 0; let tipCard = 0;
+            let totalNetto = 0; let pfandCollected = 0; let pfandReturned = 0; let itemSummary = {};
+            
+            // Gruppieren nach Zeitstempel, um Trinkgelder nicht doppelt zu zählen
+            let txGroups = {};
             globalTransactions.forEach(tx => {
-                totalBrutto += tx.total_brutto; totalNetto += tx.quantity * tx.item_price;
-                pfandCollected += tx.pfand_collected; pfandReturned += tx.pfand_returned;
+                let pType = tx.description === 'card' ? 'card' : 'bar';
+                let rawTip = parseFloat(tx.status) || 0;
+                let tKey = new Date(tx.created_at).getTime().toString();
+                
+                if(!txGroups[tKey]) txGroups[tKey] = { pType: pType, tip: rawTip };
+                
+                totalNetto += tx.quantity * tx.item_price;
+                pfandCollected += tx.pfand_collected;
+                pfandReturned += tx.pfand_returned;
+                
+                if(pType === 'bar') salesBar += tx.total_brutto;
+                else salesCard += tx.total_brutto;
+
                 if (tx.item_price > 0) {
                     if (!itemSummary[tx.item_name]) itemSummary[tx.item_name] = { count: 0, revenue: 0 };
                     itemSummary[tx.item_name].count += tx.quantity;
                     itemSummary[tx.item_name].revenue += tx.quantity * tx.item_price;
                 }
             });
-            document.getElementById('stat-brutto').innerText = totalBrutto.toFixed(2).replace('.', ',') + " €";
+
+            for(let k in txGroups){
+                if(txGroups[k].pType === 'bar') tipBar += txGroups[k].tip;
+                else tipCard += txGroups[k].tip;
+            }
+
+            document.getElementById('stat-bar').innerText = (salesBar + tipBar).toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-card').innerText = (salesCard + tipCard).toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-tip-bar').innerText = tipBar.toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-tip-card').innerText = tipCard.toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-netto').innerText = totalNetto.toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-pfand').innerText = (pfandCollected - pfandReturned).toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-becher-ret').innerText = (pfandReturned / PFAND_WERT).toFixed(0);
+            
             const tbody = document.getElementById('stats-table-body');
-            if (Object.keys(itemSummary).length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" style="color: #a0aec0; text-align: center;">Noch keine Daten vorhanden</td></tr>'; return;
-            }
             tbody.innerHTML = '';
             for (let name in itemSummary) {
-                tbody.innerHTML += `<tr><td><b>${name}</b></td><td style="text-align: center; font-weight: 600;">${itemSummary[name].count}x</td><td style="text-align: right; font-weight: bold; color: #2d3748;">${itemSummary[name].revenue.toFixed(2).replace('.', ',')} €</td></tr>`;
+                tbody.innerHTML += `<tr><td><b>${name}</b></td><td style="text-align: center;">${itemSummary[name].count}x</td><td style="text-align: right; font-weight: bold;">${itemSummary[name].revenue.toFixed(2).replace('.', ',')} €</td></tr>`;
             }
+
+            // Render Historie mit REAKTIVIEREN KNOPF
+            const historyTbody = document.getElementById('history-table-body');
+            historyTbody.innerHTML = '';
+            allHistoryOrders.forEach(order => {
+                const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const actionField = order.status === 'open' 
+                    ? `<span class="badge badge-open">⏳ In Mixe</span>` 
+                    : `<button class="btn-reopen" onclick="reopenOrder(${order.id})">↩️ Reaktivieren</button>`;
+                
+                historyTbody.innerHTML += `<tr><td style="color:#718096; font-size:0.85rem;">${timeStr}</td><td><b>${order.description}</b></td><td>${actionField}</td></tr>`;
+            });
         }
     </script>
 </body>
