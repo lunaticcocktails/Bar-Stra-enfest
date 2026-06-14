@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobiles Cocktailgewerbe - Kasse & Statistik</title>
+    <!-- Einbindung von Supabase für die Live-Übertragung über den Hotspot -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --primary-alk: #2b5c8f;
+            --primary-free: #2e7d32;
+            --primary-wine: #c62828;
+            --pfand-color: #ef6c00;
+            --confirm-color: #2e7d32;
+        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 15px; }
+        .nav { display: flex; gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .nav button { padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #ddd; }
+        .nav button.active { background: #333; color: white; }
+        .view { display: none; max-width: 800px; margin: 0 auto; }
+        .view.active { display: block; }
+        
+        /* KASSEN-STYLING */
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .btn { padding: 20px 10px; border: none; border-radius: 12px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.1s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-alk { background-color: var(--primary-alk); }
+        .btn-free { background-color: var(--primary-free); }
+        .btn-wine { background-color: var(--primary-wine); }
+        .btn-pfand { background-color: var(--pfand-color); grid-column: span 2; font-size: 1.2rem; }
+        .kassen-footer { background: var(--card-bg); padding: 20px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); text-align: center; }
+        .total-display { font-size: 2.5rem; font-weight: bold; margin-bottom: 15px; color: #111; }
+        .btn-submit { background-color: var(--confirm-color); width: 100%; padding: 18px; font-size: 1.4rem; }
+        .basket-preview { text-align: left; margin-bottom: 15px; font-size: 0.9rem; color: #666; max-height: 80px; overflow-y: auto; background: #eee; padding: 5px; border-radius: 5px; }
+
+        /* BAR-STYLING */
+        .order-card { background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; border-left: 5px solid var(--primary-alk); }
+        .order-items { font-size: 1.3rem; font-weight: bold; }
+        .btn-done { background: #2e7d32; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+
+        /* STATISTIK-STYLING */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: center; }
+        .stat-val { font-size: 1.8rem; font-weight: bold; color: #111; margin-top: 5px; }
+        .stats-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .stats-table th, .stats-table td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        .stats-table th { background: #333; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="nav">
+        <button id="nav-kasse" class="active" onclick="switchView('kasse')">🛒 Kasse</button>
+        <button id="nav-bar" onclick="switchView('bar')">🍸 Bar (Mixer)</button>
+        <button id="nav-stats" onclick="switchView('stats')">📊 Statistik</button>
+    </div>
+
+    <!-- 1. ANSICHT: KASSE -->
+    <div id="view-kasse" class="view active">
+        <h3 style="color: var(--primary-alk);">Cocktails (mit Alkohol)</h3>
+        <div class="grid">
+            <button class="btn btn-alk" onclick="addItem('Espresso Martini', 8, true)">Espresso Martini<br><b>10€</b></button>
+            <button class="btn btn-alk" onclick="addItem('Japanese Trad. Fizz', 8, true)">Japanese Fizz<br><b>10€</b></button>
+            <button class="btn btn-alk" onclick="addItem('Paloma', 8, true)">Paloma<br><b>10€</b></button>
+        </div>
+
+        <h3 style="color: var(--primary-free);">Cocktails (Alkoholfrei)</h3>
+        <div class="grid">
+            <button class="btn btn-free" onclick="addItem('Japanese Fizz (AF)', 8, true)">Japanese Fizz AF<br><b>10€</b></button>
+            <button class="btn btn-free" onclick="addItem('Paloma (AF)', 8, true)">Paloma AF<br><b>10€</b></button>
+            <button class="btn btn-free" onclick="addItem('Rosmarin Pfirsich Spritz', 8, true)">Rosmarin Pfirsich<br><b>10€</b></button>
+        </div>
+
+        <h3 style="color: var(--primary-wine);">Weine & Schorle</h3>
+        <div class="grid">
+            <button class="btn btn-wine" onclick="addItem('Weißwein 0.1l', 4, true)">Weiß 0.1l<br><b>6€</b></button>
+            <button class="btn btn-wine" onclick="addItem('Weißwein 0.2l', 8, true)">Weiß 0.2l<br><b>10€</b></button>
+            <button class="btn btn-wine" onclick="addItem('Rotwein 0.1l', 4, true)">Rot 0.1l<br><b>6€</b></button>
+            <button class="btn btn-wine" onclick="addItem('Rotwein 0.2l', 8, true)">Rot 0.2l<br><b>10€</b></button>
+            <button class="btn btn-wine" onclick="addItem('Weinschorle 0.4l', 8, true)">Schorle 0.4l<br><b>10€</b></button>
+        </div>
+
+        <h3>Pfand-Rückgabe</h3>
+        <div class="grid">
+            <button class="btn btn-pfand" onclick="addPfandReturn()">↩️ 1x Pfand zurück (-2,00 €)</button>
+            <button class="btn" style="background:#555;" onclick="clearBasket()">❌ Reset</button>
+        </div>
+
+        <div class="kassen-footer">
+            <div class="basket-preview" id="basket-preview">Warenkorb leer</div>
+            <div class="total-display" id="total-display">0,00 €</div>
+            <button class="btn btn-submit" onclick="submitOrder()">✔️ Bestätigen & Senden</button>
+        </div>
+    </div>
+
+    <!-- 2. ANSICHT: BAR -->
+    <div id="view-bar" class="view">
+        <h2>Offene Bestellungen (Mixstation)</h2>
+        <div id="orders-container">
+            <p style="color: #666;">Keine offenen Bestellungen gerade. Zeit zum Durchatmen! 🌴</p>
+        </div>
+    </div>
+
+    <!-- 3. ANSICHT: STATISTIK -->
+    <div id="view-stats" class="view">
+        <h2>Live-Statistiken & Finanzen</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div>Kassen-Soll (Brutto)</div>
+                <div class="stat-val" id="stat-brutto" style="color: var(--confirm-color);">0,00 €</div>
+            </div>
+            <div class="stat-card">
+                <div>Reiner Getränkeumsatz</div>
+                <div class="stat-val" id="stat-netto">0,00 €</div>
+            </div>
+            <div class="stat-card">
+                <div>Pfand im Umlauf</div>
+                <div class="stat-val" id="stat-pfand" style="color: var(--pfand-color);">0,00 €</div>
+            </div>
+        </div>
+
+        <h3>Verkaufte Stückzahlen</h3>
+        <table class="stats-table">
+            <thead>
+                <tr>
+                    <th>Getränk</th>
+                    <th>Anzahl verkauft</th>
+                    <th>Umsatz</th>
+                </tr>
+            </thead>
+            <tbody id="stats-table-body">
+                <!-- Wird dynamisch befüllt -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // --- KONFIGURATION & LOGIK ---
+        const PFAND_WERT = 2.0;
+        let basket = { items: {}, pfandReturns: 0, total: 0 };
+        
+        // Lokaler Speicher als Fallback, falls kein Supabase genutzt wird (zum Testen)
+        let db = { orders: [], stats: {} };
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            document.getElementById(`nav-${viewName}`).classList.add('active');
+            if(viewName === 'stats') renderStats();
+            if(viewName === 'bar') renderBar();
+        }
+
+        function addItem(name, price, hasPfand) {
+            if (!basket.items[name]) basket.items[name] = { count: 0, price: price, pfand: hasPfand ? PFAND_WERT : 0 };
+            basket.items[name].count++;
+            updateDisplay();
+        }
+
+        function addPfandReturn() {
+            basket.pfandReturns++;
+            updateDisplay();
+        }
+
+        function clearBasket() {
+            basket = { items: {}, pfandReturns: 0, total: 0 };
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            let total = 0;
+            let previewText = [];
+            
+            for (let name in basket.items) {
+                let item = basket.items[name];
+                let itemTotal = item.count * (item.price + item.pfand);
+                total += itemTotal;
+                previewText.push(`${item.count}x ${name}`);
+            }
+            
+            let pfandAbzug = basket.pfandReturns * PFAND_WERT;
+            total -= pfandAbzug;
+            basket.total = total;
+
+            if(basket.pfandReturns > 0) {
+                previewText.push(`-${basket.pfandReturns}x Pfand-Rückgabe`);
+            }
+
+            document.getElementById('total-display').innerText = total.toFixed(2).replace('.', ',') + " €";
+            document.getElementById('basket-preview').innerText = previewText.length > 0 ? previewText.join(', ') : "Warenkorb leer";
+        }
+
+        function submitOrder() {
+            if (Object.keys(basket.items).length === 0 && basket.pfandReturns === 0) return;
+
+            // Bestellung für die Bar formatieren (nur Getränke, kein Pfand-Rückgabe-Stress)
+            let orderItems = [];
+            for (let name in basket.items) {
+                orderItems.push(`${basket.items[name].count}x ${name}`);
+                
+                // Für Statistik speichern
+                if (!db.stats[name]) db.stats[name] = { count: 0, revenue: 0 };
+                db.stats[name].count += basket.items[name].count;
+                db.stats[name].revenue += basket.items[name].count * basket.items[name].price;
+            }
+
+            // Gesamte Finanzen in der Pseudo-Datenbank sichern
+            if(!db.totalBrutto) { db.totalBrutto = 0; db.totalNetto = 0; db.totalPfand = 0; db.totalPfandReturns = 0; }
+            db.totalBrutto += basket.total;
+            db.totalPfandReturns += basket.pfandReturns;
+
+            for (let name in basket.items) {
+                db.totalNetto += basket.items[name].count * basket.items[name].price;
+                db.totalPfand += basket.items[name].count * PFAND_WERT;
+            }
+            db.totalPfand -= (basket.pfandReturns * PFAND_WERT);
+
+            if(orderItems.length > 0) {
+                db.orders.push({ id: Date.now(), items: orderItems.join(', ') });
+            }
+
+            alert("Bestellung gesendet!");
+            clearBasket();
+            renderBar();
+        }
+
+        function renderBar() {
+            const container = document.getElementById('orders-container');
+            if(db.orders.length === 0) {
+                container.innerHTML = '<p style="color: #666;">Keine offenen Bestellungen gerade. Zeit zum Durchatmen! 🌴</p>';
+                return;
+            }
+            container.innerHTML = '';
+            db.orders.forEach(order => {
+                container.innerHTML += `
+                    <div class="order-card" id="order-${order.id}">
+                        <div class="order-items">${order.items}</div>
+                        <button class="btn-done" onclick="completeOrder(${order.id})">✔ Fertig</button>
+                    </div>
+                `;
+            });
+        }
+
+        function completeOrder(id) {
+            db.orders = db.orders.filter(o => o.id !== id);
+            renderBar();
+        }
+
+        function renderStats() {
+            document.getElementById('stat-brutto').innerText = (db.totalBrutto || 0).toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-netto').innerText = (db.totalNetto || 0).toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-pfand').innerText = (db.totalPfand || 0).toFixed(2).replace('.', ',') + " €";
+
+            const tbody = document.getElementById('stats-table-body');
+            tbody.innerHTML = '';
+            for(let name in db.stats) {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><b>${name}</b></td>
+                        <td>${db.stats[name].count}x</td>
+                        <td>${db.stats[name].revenue.toFixed(2).replace('.', ',')} €</td>
+                    </tr>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+
