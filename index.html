@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobiles Cocktailgewerbe - Kassensystem Pro</title>
+    <title>Mobiles Cocktailgewerbe - Kassensystem Pro V2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -16,6 +16,7 @@
             --pfand-color: #dd6b20;
             --confirm-color: #2f855a;
             --border-color: #e2e8f0;
+            --danger-color: #e53e3e;
         }
         * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
         body { background-color: var(--bg-color); color: var(--text-color); margin: 0; padding: 10px; padding-bottom: 30px; }
@@ -71,7 +72,7 @@
         .btn-done { background: var(--confirm-color); color: white; border: none; padding: 12px 18px; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; }
         
         .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
-        @media(min-width: 600px) { .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+        @media(min-width: 600px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
         .stat-card { background: white; padding: 12px 8px; border-radius: 12px; border: 1px solid var(--border-color); text-align: center; }
         .stat-label { font-size: 0.8rem; color: #718096; font-weight: 600; }
         .stat-val { font-size: 1.3rem; font-weight: bold; color: #1a202c; margin-top: 5px; }
@@ -82,12 +83,15 @@
         
         .badge { padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
         .badge-open { background: #feebc8; color: #c05621; }
-        .badge-done { background: #c6f6d5; color: #22543d; }
-        .btn-reopen { background: #3182ce; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
+        .badge-done { background: #cbd5e0; color: #4a5568; }
+        .btn-reopen { background: #3182ce; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; margin-right: 5px; }
+        .btn-delete { background: var(--danger-color); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
+        .btn-danger-zone { background: var(--danger-color); color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 30px; }
     </style>
 </head>
 <body>
 
+    <!-- SETUP SCREEN -->
     <div id="setup-screen" class="setup-container">
         <div class="setup-title">Supabase Live-Verbindung</div>
         <p style="font-size: 0.85rem; color: #4a5568; line-height: 1.4; margin-bottom: 15px;">
@@ -98,6 +102,7 @@
         <button class="btn-connect" onclick="initializeSupabase()">App starten</button>
     </div>
 
+    <!-- MAIN APP -->
     <div id="app-content">
         <div class="nav">
             <button id="nav-kasse" class="active" onclick="switchView('kasse')">🛒 Kasse</button>
@@ -105,6 +110,7 @@
             <button id="nav-stats" onclick="switchView('stats')">📊 Statistik</button>
         </div>
 
+        <!-- VIEW 1: KASSE -->
         <div id="view-kasse" class="view active">
             <h3 style="color: var(--primary-alk); border-left-color: var(--primary-alk);">Cocktails (mit Alkohol)</h3>
             <div class="grid">
@@ -142,6 +148,7 @@
             </div>
         </div>
 
+        <!-- RECHNER & BEZAHL-MODAL -->
         <div id="pay-modal" class="modal">
             <div class="modal-content">
                 <h3 style="margin-top:0; border-left-color:#3182ce;">Abkassieren & Rückgeld</h3>
@@ -172,11 +179,13 @@
             </div>
         </div>
 
+        <!-- VIEW 2: BAR (MIXER) -->
         <div id="view-bar" class="view">
             <h2 style="margin-top: 10px; font-size: 1.4rem;">Offene Mix-Bestellungen</h2>
             <div id="orders-container"></div>
         </div>
 
+        <!-- VIEW 3: STATISTIK & HISTORIE -->
         <div id="view-stats" class="view">
             <h2 style="margin-top: 10px; font-size: 1.4rem;">Live-Event-Auswertung</h2>
             <div class="stats-grid">
@@ -194,11 +203,14 @@
                 <tbody id="stats-table-body"></tbody>
             </table>
 
-            <h3 style="border-left-color: #3182ce;">📋 Verlauf aller Bestellungen</h3>
+            <h3 style="border-left-color: #3182ce;">📋 Verlauf aller Bestellungen (Storno / Reaktivieren)</h3>
             <table class="stats-table">
-                <thead> <tr> <th>Uhrzeit</th> <th>Getränke</th> <th>Status / Aktion</th> </tr> </thead>
+                <thead> <tr> <th>Uhrzeit</th> <th>Getränke</th> <th>Aktionen</th> </tr> </thead>
                 <tbody id="history-table-body"></tbody>
             </table>
+
+            <!-- BUTTON FÜR DAS NÄCHSTE EVENT -->
+            <button class="btn-danger-zone" onclick="resetWholeEvent()">🚨 Gesamtes Event zurücksetzen (Alles auf Null)</button>
         </div>
     </div>
 
@@ -262,7 +274,6 @@
             document.getElementById('basket-preview').innerText = previewText.length > 0 ? previewText.join(', ') : "Warenkorb ist leer";
         }
 
-        // RECHNER LOGIK
         function openPayModal() {
             if (Object.keys(basket.items).length === 0 && basket.pfandReturns === 0) return;
             document.getElementById('modal-solltotal').innerText = basket.total.toFixed(2).replace('.', ',') + " €";
@@ -304,37 +315,46 @@
             let tip = Math.max(0, istTotal - basket.total);
 
             try {
-                const transactionRows = []; const orderItemsText = []; let mainCategory = 'alk';
+                let tempOrderId = Date.now(); // Generiere ID für Verknüpfung Kasse <-> Statistik
+
+                // 1. Erst Bar-Bon generieren, falls Getränke drin sind
+                const orderItemsText = []; let mainCategory = 'alk';
+                for (let name in basket.items) {
+                    orderItemsText.push(`${basket.items[name].count}x ${name}`);
+                    mainCategory = basket.items[name].category;
+                }
+
+                if (orderItemsText.length > 0) {
+                    const { data: orderData, error: orderError } = await supabaseClient.from('cocktail_orders').insert([{
+                        id: tempOrderId, description: orderItemsText.join(', '), category: mainCategory, status: 'open'
+                    }]).select();
+                    if (orderError) throw orderError;
+                }
+
+                // 2. Jetzt Umsatzzeilen schreiben (mit korrekten Spaltennamen!)
+                const transactionRows = [];
                 for (let name in basket.items) {
                     let item = basket.items[name];
-                    orderItemsText.push(`${item.count}x ${name}`);
-                    mainCategory = item.category;
                     transactionRows.push({
+                        order_id: tempOrderId,
                         item_name: name, quantity: item.count, item_price: item.price,
                         pfand_collected: item.count * PFAND_WERT, pfand_returned: 0,
                         total_brutto: item.count * (item.price + PFAND_WERT),
-                        description: selectedPayType, // Speichert bar/card trickreich ab
-                        status: tip.toString() // Speichert das anteilige Trinkgeld ab (wird unten verarbeitet)
+                        payment_type: selectedPayType, 
+                        tip_amount: tip / Object.keys(basket.items).length // Verteile Trinkgeld auf Posten
                     });
                 }
                 if (basket.pfandReturns > 0) {
                     transactionRows.push({
+                        order_id: tempOrderId,
                         item_name: "⚠️ Reine Pfandrückgabe", quantity: basket.pfandReturns, item_price: 0,
                         pfand_collected: 0, pfand_returned: basket.pfandReturns * PFAND_WERT,
-                        total_brutto: -(basket.pfandReturns * PFAND_WERT), description: selectedPayType, status: "0"
+                        total_brutto: -(basket.pfandReturns * PFAND_WERT), payment_type: selectedPayType, tip_amount: 0
                     });
                 }
                 if (transactionRows.length > 0) {
-                    // Falls reines Trinkgeld ohne Items gegeben wurde (Sonderfall abfangen)
-                    if(transactionRows.length === 1 && basket.pfandReturns > 0) { transactionRows[0].status = tip.toString(); }
                     const { error: txError } = await supabaseClient.from('cocktail_transactions').insert(transactionRows);
                     if (txError) throw txError;
-                }
-                if (orderItemsText.length > 0) {
-                    const { error: orderError } = await supabaseClient.from('cocktail_orders').insert([{
-                        description: orderItemsText.join(', '), category: mainCategory, status: 'open'
-                    }]);
-                    if (orderError) throw orderError;
                 }
                 closePayModal(); clearBasket();
             } catch (err) { alert("Fehler: " + err.message); }
@@ -345,9 +365,31 @@
             await supabaseClient.from('cocktail_orders').update({ status: 'done' }).eq('id', orderId);
         }
 
-        // NEU: Reaktivieren Funktion
         async function reopenOrder(orderId) {
             await supabaseClient.from('cocktail_orders').update({ status: 'open' }).eq('id', orderId);
+        }
+
+        // NEU: Stornieren Funktion (Löscht aus beiden Tabellen!)
+        async function deleteOrder(orderId) {
+            if (!confirm("Möchtest du diese Bestellung wirklich komplett stornieren und aus dem Umsatz löschen?")) return;
+            try {
+                await supabaseClient.from('cocktail_orders').delete().eq('id', orderId);
+                await supabaseClient.from('cocktail_transactions').delete().eq('order_id', orderId);
+            } catch (e) { alert("Fehler beim Löschen: " + e.message); }
+        }
+
+        // NEU: Total-Reset Funktion für das nächste Event
+        async function resetWholeEvent() {
+            if (!confirm("⚠️ WARNUNG: Möchtest du wirklich ALLE Umsätze, Statistiken und Bestellungen unwiderruflich löschen, um ein neues Event zu starten?")) return;
+            const pw = prompt("Bitte gib zur Sicherheit das Wort 'LÖSCHEN' ein:");
+            if (pw !== "LÖSCHEN") { alert("Abgebrochen. Nichts gelöscht!"); return; }
+            
+            try {
+                // Leert die Tabellen komplett über leere Filter-Tricks
+                await supabaseClient.from('cocktail_orders').delete().neq('status', 'complete-unverwechselbar');
+                await supabaseClient.from('cocktail_transactions').delete().neq('item_name', 'complete-unverwechselbar');
+                alert("Projekt erfolgreich auf Null zurückgesetzt! Viel Erfolg beim neuen Event! 🍹");
+            } catch (e) { alert("Fehler beim Zurücksetzen: " + e.message); }
         }
 
         async function loadData() {
@@ -395,14 +437,10 @@
             let salesBar = 0; let salesCard = 0; let tipBar = 0; let tipCard = 0;
             let totalNetto = 0; let pfandCollected = 0; let pfandReturned = 0; let itemSummary = {};
             
-            // Gruppieren nach Zeitstempel, um Trinkgelder nicht doppelt zu zählen
-            let txGroups = {};
+            // Rechnen Gruppiert nach Bestellungen für die genaue Trinkgeld-Trennung
+            let orderIdsCounted = [];
             globalTransactions.forEach(tx => {
-                let pType = tx.description === 'card' ? 'card' : 'bar';
-                let rawTip = parseFloat(tx.status) || 0;
-                let tKey = new Date(tx.created_at).getTime().toString();
-                
-                if(!txGroups[tKey]) txGroups[tKey] = { pType: pType, tip: rawTip };
+                let pType = tx.payment_type === 'card' ? 'card' : 'bar';
                 
                 totalNetto += tx.quantity * tx.item_price;
                 pfandCollected += tx.pfand_collected;
@@ -411,6 +449,10 @@
                 if(pType === 'bar') salesBar += tx.total_brutto;
                 else salesCard += tx.total_brutto;
 
+                // Trinkgelder addieren (jeder Posten hält seinen Anteil)
+                if(pType === 'bar') tipBar += tx.tip_amount;
+                else tipCard += tx.tip_amount;
+
                 if (tx.item_price > 0) {
                     if (!itemSummary[tx.item_name]) itemSummary[tx.item_name] = { count: 0, revenue: 0 };
                     itemSummary[tx.item_name].count += tx.quantity;
@@ -418,18 +460,12 @@
                 }
             });
 
-            for(let k in txGroups){
-                if(txGroups[k].pType === 'bar') tipBar += txGroups[k].tip;
-                else tipCard += txGroups[k].tip;
-            }
-
             document.getElementById('stat-bar').innerText = (salesBar + tipBar).toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-card').innerText = (salesCard + tipCard).toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-tip-bar').innerText = tipBar.toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-tip-card').innerText = tipCard.toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-netto').innerText = totalNetto.toFixed(2).replace('.', ',') + " €";
             document.getElementById('stat-pfand').innerText = (pfandCollected - pfandReturned).toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-becher-ret').innerText = (pfandReturned / PFAND_WERT).toFixed(0);
             
             const tbody = document.getElementById('stats-table-body');
             tbody.innerHTML = '';
@@ -437,19 +473,25 @@
                 tbody.innerHTML += `<tr><td><b>${name}</b></td><td style="text-align: center;">${itemSummary[name].count}x</td><td style="text-align: right; font-weight: bold;">${itemSummary[name].revenue.toFixed(2).replace('.', ',')} €</td></tr>`;
             }
 
-            // Render Historie mit REAKTIVIEREN KNOPF
             const historyTbody = document.getElementById('history-table-body');
             historyTbody.innerHTML = '';
             allHistoryOrders.forEach(order => {
                 const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 const actionField = order.status === 'open' 
-                    ? `<span class="badge badge-open">⏳ In Mixe</span>` 
-                    : `<button class="btn-reopen" onclick="reopenOrder(${order.id})">↩️ Reaktivieren</button>`;
+                    ? `<span class="badge badge-open">⏳ Offen</span>` 
+                    : `<button class="btn-reopen" onclick="reopenOrder(${order.id})">↩️ Zurückholen</button>`;
                 
-                historyTbody.innerHTML += `<tr><td style="color:#718096; font-size:0.85rem;">${timeStr}</td><td><b>${order.description}</b></td><td>${actionField}</td></tr>`;
+                historyTbody.innerHTML += `
+                    <tr>
+                        <td style="color:#718096; font-size:0.85rem;">${timeStr}</td>
+                        <td><b>${order.description}</b></td>
+                        <td>
+                            ${actionField}
+                            <button class="btn-delete" onclick="deleteOrder(${order.id})">❌ Storno</button>
+                        </td>
+                    </tr>`;
             });
         }
     </script>
 </body>
 </html>
-
