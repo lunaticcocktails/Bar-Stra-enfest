@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mobiles Cocktailgewerbe - Multi-Event Kassensystem</title>
+    <title>Mobiles Cocktailgewerbe - Multi-Event Kassensystem Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
@@ -36,10 +36,13 @@
         .view { display: none; }
         .view.active { display: block; }
         
-        /* EVENT SELECTION SCREEN */
-        .event-card-btn { background: white; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; width: 100%; text-align: left; margin-bottom: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        /* EVENT SELECTION ROW WITH DELETE OPTION */
+        .event-row { display: flex; gap: 8px; margin-bottom: 8px; width: 100%; align-items: stretch; }
+        .event-card-btn { background: white; border: 1px solid var(--border-color); padding: 15px; border-radius: 12px; font-size: 1.1rem; font-weight: bold; flex: 1; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
         .event-card-btn:hover { background: #f7fafc; border-color: #cbd5e0; }
-        
+        .btn-row-delete { background: #fee2e2; border: 1px solid #fca5a5; color: var(--danger-color); padding: 0 15px; border-radius: 12px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+        .btn-row-delete:hover { background: #fca5a5; }
+
         h3 { margin: 20px 0 8px 0; font-size: 1.1rem; border-left: 4px solid #cbd5e0; padding-left: 8px; }
         .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
         @media(min-width: 600px) { .grid { grid-template-columns: repeat(3, 1fr); } }
@@ -71,8 +74,6 @@
         .calc-display { background: #edf2f7; padding: 12px; border-radius: 8px; text-align: center; font-size: 1.1rem; margin-bottom: 15px; font-weight: 600; }
         
         .order-card { background: white; padding: 15px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); border: 1px solid var(--border-color); border-left: 6px solid var(--primary-alk); display: flex; justify-content: space-between; align-items: center; }
-        .order-card.af { border-left-color: var(--primary-free); }
-        .order-card.wein { border-left-color: var(--primary-wine); }
         .order-info { flex: 1; padding-right: 10px; }
         .order-items { font-size: 1.25rem; font-weight: bold; color: #1a202c; line-height: 1.4; }
         .order-time { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
@@ -92,13 +93,13 @@
         .badge-open { background: #feebc8; color: #c05621; }
         .btn-reopen { background: #3182ce; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; margin-right: 5px; }
         .btn-delete { background: var(--danger-color); color: white; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
+        .btn-danger-zone { background: var(--danger-color); color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; font-size: 1rem; cursor: pointer; margin-top: 20px; }
         .btn-excel { background: #2b6cb0; color: white; border: none; width: 100%; padding: 14px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 20px; font-size: 1rem; }
         .admin-box { background: white; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color); margin-top: 25px; }
     </style>
 </head>
 <body>
 
-    <!-- SETUP SCREEN -->
     <div id="setup-screen" class="setup-container">
         <div class="setup-title">Supabase Live-Verbindung</div>
         <p style="font-size: 0.85rem; color: #4a5568; line-height: 1.4; margin-bottom: 15px;">Trage deine Zugangsdaten ein.</p>
@@ -107,7 +108,6 @@
         <button class="btn-connect" onclick="initializeSupabase()">Verbindung prüfen</button>
     </div>
 
-    <!-- EVENT SELECTION SCREEN -->
     <div id="event-screen" class="setup-container" style="display:none; max-width: 600px;">
         <div class="setup-title">🌴 Event auswählen oder erstellen</div>
         <div class="form-group" style="display:flex; gap:8px; margin-bottom:20px;">
@@ -115,12 +115,9 @@
             <button class="btn-connect" style="flex:1; padding:0;" onclick="createNewEvent()">➕ Neu</button>
         </div>
         <label style="font-weight:bold; font-size:0.9rem; display:block; margin-bottom:10px;">Bestehende Events:</label>
-        <div id="event-list-container">
-            <p style="color:#718096; font-style:italic;">Noch keine Events angelegt.</p>
-        </div>
+        <div id="event-list-container"></div>
     </div>
 
-    <!-- MAIN APP CONTENT -->
     <div id="app-content">
         <div style="background:#1a202c; color:white; padding:10px; text-align:center; font-weight:bold; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
             <span>📍 Event: <span id="active-event-title-display">---</span></span>
@@ -133,7 +130,6 @@
             <button id="nav-stats" onclick="switchView('stats')">📊 Statistik</button>
         </div>
 
-        <!-- VIEW 1: KASSE -->
         <div id="view-kasse" class="view active">
             <div id="dynamic-menu-content"></div>
 
@@ -150,7 +146,6 @@
                 <button class="btn-submit" onclick="openPayModal()">✔️ Bezahlen & Senden</button>
             </div>
 
-            <!-- GETRÄNKE MANAGEMENT -->
             <div class="admin-box">
                 <h4 style="margin:0 0 10px 0; color:#4a5568;">⚙️ Menü-Verwaltung</h4>
                 <div class="grid" style="grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px;">
@@ -173,7 +168,6 @@
             </div>
         </div>
 
-        <!-- POPUP: ITEM-RABATT -->
         <div id="item-modal" class="modal">
             <div class="modal-content">
                 <h3 id="item-modal-title" style="margin-top:0; border-left-color:#dd6b20;">Drink bearbeiten</h3>
@@ -190,7 +184,6 @@
             </div>
         </div>
 
-        <!-- POPUP: BEZAHLEN -->
         <div id="pay-modal" class="modal">
             <div class="modal-content">
                 <h3 style="margin-top:0; border-left-color:#3182ce;">Abschließen & Senden</h3>
@@ -199,14 +192,8 @@
                     <button class="btn-paytype active" id="paytype-bar" onclick="setPayType('bar')">💵 Bargeld</button>
                     <button class="btn-paytype" id="paytype-card" onclick="setPayType('card')">💳 Karte</button>
                 </div>
-                <div class="form-group">
-                    <label>Wie viel wird gegeben? (Inkl. Trinkgeld)</label>
-                    <input type="number" step="0.50" id="input-isttotal" class="pay-input" oninput="calculateChange()">
-                </div>
-                <div class="form-group" id="group-gegeben">
-                    <label>Gegebener Geldschein (Rückgeld-Rechner)</label>
-                    <input type="number" step="5" id="input-gegeben" class="pay-input" oninput="calculateChange()" placeholder="z.B. 50">
-                </div>
+                <div class="form-group"> <label>Wie viel wird gegeben? (Inkl. Trinkgeld)</label> <input type="number" step="0.50" id="input-isttotal" class="pay-input" oninput="calculateChange()"> </div>
+                <div class="form-group" id="group-gegeben"> <label>Gegebener Geldschein (Rückgeld-Rechner)</label> <input type="number" step="5" id="input-gegeben" class="pay-input" oninput="calculateChange()" placeholder="z.B. 50"> </div>
                 <div class="calc-display" id="calc-output"></div>
                 <div style="display:flex; gap:10px;">
                     <button class="btn-submit" style="background:#718096; font-size:1rem; padding:12px;" onclick="closePayModal()">Abbrechen</button>
@@ -215,17 +202,14 @@
             </div>
         </div>
 
-        <!-- VIEW 2: BAR (MIXER) -->
         <div id="view-bar" class="view">
             <h2>Offene Mix-Bestellungen</h2>
             <div id="orders-container"></div>
         </div>
 
-        <!-- VIEW 3: STATISTIK -->
         <div id="view-stats" class="view">
             <h2>Live-Auswertung</h2>
             <button class="btn-excel" onclick="exportToCSV()">📋 Kassenblatt als Excel (CSV) exportieren</button>
-
             <div class="stats-grid">
                 <div class="stat-card"> <div class="stat-label">Umsatz Bar (Soll)</div> <div class="stat-val" id="stat-bar" style="color:var(--confirm-color);">0,00 €</div> </div>
                 <div class="stat-card"> <div class="stat-label">Umsatz Karte (SumUp)</div> <div class="stat-val" id="stat-card">0,00 €</div> </div>
@@ -234,29 +218,31 @@
                 <div class="stat-card"> <div class="stat-label">Reiner Getränkeumsatz</div> <div class="stat-val" id="stat-netto">0,00 €</div> </div>
                 <div class="stat-card"> <div class="stat-label">Pfand im Umlauf</div> <div class="stat-val" id="stat-pfand" style="color:var(--pfand-color);">0,00 €</div> </div>
             </div>
-
             <h3>Strichliste & Rabatt-Verteilung</h3>
             <table class="stats-table">
-                <thead> <tr> <th>Getränk</th> <th>Gesamt</th> <th>Regulär</th> <th>20%</th> <th>50%</th> <th>100% (Gratis)</th> </tr> </thead>
+                <thead> <tr> <th>Getränk</th> <th>Gesamt</th> <th>Regulär</th> <th>20%</th> <th>50%</th> <th>100%</th> </tr> </thead>
                 <tbody id="stats-table-body"></tbody>
             </table>
-
             <h3>📋 Bestellverlauf</h3>
             <table class="stats-table">
                 <thead> <tr> <th>Uhrzeit</th> <th>Getränke</th> <th>Aktion</th> </tr> </thead>
                 <tbody id="history-table-body"></tbody>
             </table>
+            <button class="btn-danger-zone" onclick="resetWholeEvent()">🚨 Gesamtes Event zurücksetzen (Alles auf Null)</button>
         </div>
     </div>
 
     <script>
         const PFAND_WERT = 2.0;
-        let supabaseClient = null;
-        let currentEvent = ""; // Hält den Namen des aktuell aktiven Events
-        
+        let supabaseClient = null; let currentEvent = "";
         let menuProducts = []; let basketList = []; let pfandReturnsCount = 0;
         let currentOrders = []; let allHistoryOrders = []; let globalTransactions = [];
         let selectedPayType = 'bar'; let activeSelectedBasketIndex = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const savedUrl = localStorage.getItem("supabase_url"); const savedKey = localStorage.getItem("supabase_key");
+            if (savedUrl && savedKey) { document.getElementById("sup-url").value = savedUrl; document.getElementById("sup-key").value = savedKey; }
+        });
 
         function initializeSupabase() {
             const url = document.getElementById("sup-url").value.trim(); const key = document.getElementById("sup-key").value.trim();
@@ -266,47 +252,49 @@
                 localStorage.setItem("supabase_url", url); localStorage.setItem("supabase_key", key);
                 document.getElementById("setup-screen").style.display = "none";
                 document.getElementById("event-screen").style.display = "block";
-                loadEventList();
-                loadMenuFromDatabase();
-            } catch (e) { alert(error.message); }
+                loadEventList(); loadMenuFromDatabase();
+            } catch (e) { alert(e.message); }
         }
 
         async function loadEventList() {
-            // Zieht alle einzigartigen Eventnamen trickreich aus den getätigten Transaktionen
             const { data } = await supabaseClient.from('cocktail_transactions').select('category');
-            let events = new Set();
-            if(data) { data.forEach(d => { if(d.category) events.add(d.category); }); }
-            
+            let events = new Set(); if(data) { data.forEach(d => { if(d.category) events.add(d.category); }); }
             const container = document.getElementById('event-list-container');
-            if(events.size === 0) {
-                container.innerHTML = `<p style="color:#718096; font-style:italic;">Noch keine Events aufgezeichnet. Lege oben eins an!</p>`;
-                return;
-            }
+            if(events.size === 0) { container.innerHTML = `<p style="color:#718096; font-style:italic;">Keine Events vorhanden.</p>`; return; }
             container.innerHTML = "";
             events.forEach(evt => {
-                container.innerHTML += `<button class="event-card-btn" onclick="selectEvent('${evt}')">🎉 ${evt} <span>Öffnen ➡️</span></button>`;
+                // NEU: Row mit Delete-Knopf daneben
+                container.innerHTML += `
+                    <div class="event-row" id="evt-row-${btoa(evt).replace(/=/g,'')}">
+                        <button class="event-card-btn" onclick="selectEvent('${evt}')">🎉 ${evt} <span>Öffnen ➡️</span></button>
+                        <button class="btn-row-delete" onclick="deleteEventFromList('${evt}')">🗑️ Löschen</button>
+                    </div>`;
             });
+        }
+
+        // NEU: Funktion um ein Event komplett aus der Cloud zu löschen
+        async function deleteEventFromList(eventName) {
+            if(!confirm(`Möchtest du das Event "${eventName}" wirklich komplett löschen? Alle Umsätze und Bestellungen davon werden unwiderruflich gelöscht!`)) return;
+            try {
+                await supabaseClient.from('cocktail_orders').delete().eq('category', eventName);
+                await supabaseClient.from('cocktail_transactions').delete().eq('category', eventName);
+                alert("Event erfolgreich gelöscht!");
+                loadEventList();
+            } catch (e) { alert("Fehler beim Löschen: " + e.message); }
         }
 
         function createNewEvent() {
             let name = document.getElementById('new-event-name').value.trim();
-            if(!name) { alert("Bitte Eventnamen eingeben!"); return; }
-            selectEvent(name);
+            if(!name) return; selectEvent(name);
         }
 
         function selectEvent(name) {
-            currentEvent = name;
-            document.getElementById('active-event-title-display').innerText = name;
-            document.getElementById('event-screen').style.display = "none";
-            document.getElementById('app-content').style.display = "block";
+            currentEvent = name; document.getElementById('active-event-title-display').innerText = name;
+            document.getElementById('event-screen').style.display = "none"; document.getElementById('app-content').style.display = "block";
             startRealtimeSync(); loadData();
         }
 
-        function backToEventSelection() {
-            document.getElementById('app-content').style.display = "none";
-            document.getElementById('event-screen').style.display = "block";
-            loadEventList();
-        }
+        function backToEventSelection() { document.getElementById('app-content').style.display = "none"; document.getElementById('event-screen').style.display = "block"; loadEventList(); }
 
         async function loadMenuFromDatabase() {
             const { data } = await supabaseClient.from('cocktail_menu').select('*').order('name');
@@ -315,38 +303,25 @@
 
         function renderKassenMenuGrid() {
             const categories = { alk: "Cocktails (mit Alkohol)", af: "Cocktails (Alkoholfrei)", wein: "Weine & Schorle" };
-            const colors = { alk: "btn-alk", af: "btn-free", wein: "btn-wine" };
-            let html = "";
+            const colors = { alk: "btn-alk", af: "btn-free", wein: "btn-wine" }; let html = "";
             for (let cat in categories) {
-                let items = menuProducts.filter(p => p.category === cat);
-                if(items.length === 0) continue;
+                let items = menuProducts.filter(p => p.category === cat); if(items.length === 0) continue;
                 html += `<h3>${categories[cat]}</h3><div class="grid">`;
-                items.forEach(p => {
-                    let totalP = p.price + PFAND_WERT;
-                    html += `<button class="btn ${colors[cat]}" onclick="addChipToBasket('${p.name}', ${p.price}, '${p.category}')">${p.name}<span class="price">${totalP}€</span></button>`;
-                });
+                items.forEach(p => { html += `<button class="btn ${colors[cat]}" onclick="addChipToBasket('${p.name}', ${p.price}, '${p.category}')">${p.name}<span class="price">${p.price+PFAND_WERT}€</span></button>`; });
                 html += `</div>`;
             }
             document.getElementById('dynamic-menu-content').innerHTML = html;
         }
 
         function renderAdminEditList() {
-            let html = "";
-            menuProducts.forEach(p => {
-                html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px; border-bottom:1px solid #eee;">
-                    <span><b>${p.name}</b> (${p.price}€)</span>
-                    <button class="btn-delete" style="padding:2px 6px; font-size:0.75rem;" onclick="deleteMenuProduct(${p.id})">🗑️ Leer</button>
-                </div>`;
-            });
+            let html = ""; menuProducts.forEach(p => { html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:4px; border-bottom:1px solid #eee;"><span><b>${p.name}</b> (${p.price}€)</span><button class="btn-delete" style="padding:2px 6px; font-size:0.75rem;" onclick="deleteMenuProduct(${p.id})">🗑️ Leer</button></div>`; });
             document.getElementById('edit-list-container').innerHTML = html;
         }
 
         async function saveNewDrink() {
             let name = document.getElementById('new-name').value.trim(); let price = parseFloat(document.getElementById('new-price').value); let category = document.getElementById('new-cat').value;
-            if(!name || isNaN(price)) return;
-            await supabaseClient.from('cocktail_menu').insert([{ name, price, category }]);
-            document.getElementById('new-name').value = ""; document.getElementById('new-price').value = "";
-            document.getElementById('add-drink-form').style.display='none'; loadMenuFromDatabase();
+            if(!name || isNaN(price)) return; await supabaseClient.from('cocktail_menu').insert([{ name, price, category }]);
+            document.getElementById('new-name').value = ""; document.getElementById('new-price').value = ""; document.getElementById('add-drink-form').style.display='none'; loadMenuFromDatabase();
         }
         async function deleteMenuProduct(id) { await supabaseClient.from('cocktail_menu').delete().eq('id', id); loadMenuFromDatabase(); }
 
@@ -355,18 +330,14 @@
             const defaults = [
                 { name: 'Espresso Martini', price: 8, category: 'alk' }, { name: 'Japanese Trad. Fizz', price: 8, category: 'alk' }, { name: 'Paloma', price: 8, category: 'alk' },
                 { name: 'Japanese Fizz (AF)', price: 8, category: 'af' }, { name: 'Paloma (AF)', price: 8, category: 'af' }, { name: 'Rosmarin Pfirsich Spritz', price: 8, category: 'af' },
-                { name: 'Weißwein 0.1l', price: 4, category: 'wein' }, { name: 'Weißwein 0.2l', price: 5, category: 'wein' }, // Wein 0.2l = 5€ Basis + 2€ Pfand = 7€ Wunschpreis
-                { name: 'Rotwein 0.1l', price: 4, category: 'wein' }, { name: 'Rotwein 0.2l', price: 5, category: 'wein' },
-                { name: 'Weinschorle 0.4l', price: 6, category: 'wein' } // Weinschorle = 6€ Basis + 2€ Pfand = 8€ Wunschpreis
+                { name: 'Weißwein 0.1l', price: 4, category: 'wein' }, { name: 'Weißwein 0.2l', price: 5, category: 'wein' }, { name: 'Rotwein 0.1l', price: 4, category: 'wein' }, { name: 'Rotwein 0.2l', price: 5, category: 'wein' }, { name: 'Weinschorle 0.4l', price: 6, category: 'wein' }
             ];
             await supabaseClient.from('cocktail_menu').insert(defaults); loadMenuFromDatabase();
         }
 
         function switchView(viewName) {
-            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-            document.getElementById(`view-${viewName}`).classList.add('active');
-            document.getElementById(`nav-${viewName}`).classList.add('active');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active')); document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active'); document.getElementById(`nav-${viewName}`).classList.add('active');
             if (viewName === 'stats') calculateAndRenderStats();
         }
 
@@ -377,30 +348,22 @@
         function updateKassenDisplay() {
             const container = document.getElementById('basket-preview-list'); container.innerHTML = ""; let total = 0;
             basketList.forEach((item, index) => {
-                let discP = item.price * (1 - item.discount / 100);
-                total += discP + PFAND_WERT;
+                let discP = item.price * (1 - item.discount / 100); total += discP + PFAND_WERT;
                 container.innerHTML += `<div class="basket-item-chip" onclick="openItemModal(${index})">${item.name}${item.discount>0?' (-'+item.discount+'%)':''} <b>${(discP+PFAND_WERT).toFixed(1)}€</b></div>`;
             });
             total -= (pfandReturnsCount * PFAND_WERT);
-            if(pfandReturnsCount > 0) {
-                container.innerHTML += `<div class="basket-item-chip" style="background:#feebc8; color:#c05621;" onclick="pfandReturnsCount--; updateKassenDisplay();">↩️ -${pfandReturnsCount}x Pfand</div>`;
-            }
+            if(pfandReturnsCount > 0) container.innerHTML += `<div class="basket-item-chip" style="background:#feebc8; color:#c05621;" onclick="pfandReturnsCount--; updateKassenDisplay();">↩️ -${pfandReturnsCount}x Pfand</div>`;
             document.getElementById('total-display').innerText = total.toFixed(2).replace('.', ',') + " €";
         }
 
-        function openItemModal(index) {
-            activeSelectedBasketIndex = index; let item = basketList[index];
-            document.getElementById('item-modal-title').innerText = item.name;
-            document.getElementById('item-modal').style.display = 'flex';
-        }
+        function openItemModal(index) { activeSelectedBasketIndex = index; let item = basketList[index]; document.getElementById('item-modal-title').innerText = item.name; document.getElementById('item-modal').style.display = 'flex'; }
         function closeItemModal() { document.getElementById('item-modal').style.display = 'none'; }
         function setItemDiscount(p) { if(activeSelectedBasketIndex!==null) { basketList[activeSelectedBasketIndex].discount = p; updateKassenDisplay(); closeItemModal(); } }
         function removeItemFromBasket() { if(activeSelectedBasketIndex!==null) { basketList.splice(activeSelectedBasketIndex, 1); updateKassenDisplay(); closeItemModal(); } }
 
         function openPayModal() {
             let total = 0; basketList.forEach(i => total += (i.price * (1 - i.discount/100)) + PFAND_WERT); total -= (pfandReturnsCount * PFAND_WERT);
-            document.getElementById('modal-solltotal').innerText = total.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('input-isttotal').value = total; document.getElementById('input-gegeben').value = "";
+            document.getElementById('modal-solltotal').innerText = total.toFixed(2).replace('.', ',') + " €"; document.getElementById('input-isttotal').value = total; document.getElementById('input-gegeben').value = "";
             setPayType('bar'); document.getElementById('pay-modal').style.display = 'flex';
         }
         function closePayModal() { document.getElementById('pay-modal').style.display = 'none'; }
@@ -417,48 +380,22 @@
         async function submitOrder() {
             const btn = document.getElementById('submit-btn'); btn.disabled = true;
             let totalSoll = 0; basketList.forEach(i => totalSoll += (i.price * (1 - i.discount/100)) + PFAND_WERT); totalSoll -= (pfandReturnsCount * PFAND_WERT);
-            let istTotal = parseFloat(document.getElementById('input-isttotal').value) || totalSoll;
-            let tip = Math.max(0, istTotal - totalSoll);
-
+            let istTotal = parseFloat(document.getElementById('input-isttotal').value) || totalSoll; let tip = Math.max(0, istTotal - totalSoll);
             try {
                 let tempOrderId = Date.now(); const orderItemsText = []; let mainCategory = 'alk';
                 let counts = {}; basketList.forEach(i => { counts[i.name] = (counts[i.name] || 0) + 1; mainCategory = i.category; });
                 for(let n in counts) { orderItemsText.push(`${counts[n]}x ${n}`); }
-
-                if (orderItemsText.length > 0) {
-                    // Verwende 'category' um die Event-Zugehörigkeit zu sichern für die Bar
-                    await supabaseClient.from('cocktail_orders').insert([{
-                        id: tempOrderId, description: orderItemsText.join(', '), category: currentEvent, status: 'open'
-                    }]);
-                }
-
+                if (orderItemsText.length > 0) await supabaseClient.from('cocktail_orders').insert([{ id: tempOrderId, description: orderItemsText.join(', '), category: currentEvent, status: 'open' }]);
+                
                 const transactionRows = [];
                 basketList.forEach(item => {
                     let discP = item.price * (1 - item.discount / 100);
                     transactionRows.push({
-                        order_id: tempOrderId,
-                        item_name: item.name, 
-                        quantity: 1, 
-                        item_price: discP, 
-                        pfand_collected: PFAND_WERT, 
-                        pfand_returned: 0,
-                        total_brutto: discP + PFAND_WERT, 
-                        payment_type: selectedPayType,
-                        tip_amount: basketList.length > 0 ? (tip / basketList.length) : tip,
-                        category: currentEvent, // Nutze Category-Spalte für den Eventnamen
-                        status: item.discount.toString() // Nutze Status-Spalte für den Rabattsatz
+                        order_id: tempOrderId, item_name: item.name, quantity: 1, item_price: discP, pfand_collected: PFAND_WERT, pfand_returned: 0,
+                        total_brutto: discP + PFAND_WERT, payment_type: selectedPayType, tip_amount: basketList.length > 0 ? (tip / basketList.length) : tip, category: currentEvent, status: item.discount.toString()
                     });
                 });
-
-                if (pfandReturnsCount > 0) {
-                    transactionRows.push({
-                        order_id: tempOrderId, item_name: "⚠️ Reine Pfandrückgabe", quantity: pfandReturnsCount, item_price: 0,
-                        pfand_collected: 0, pfand_returned: pfandReturnsCount * PFAND_WERT,
-                        total_brutto: -(pfandReturnsCount * PFAND_WERT), payment_type: selectedPayType, tip_amount: 0,
-                        category: currentEvent, status: "0"
-                    });
-                }
-
+                if (pfandReturnsCount > 0) transactionRows.push({ order_id: tempOrderId, item_name: "⚠️ Reine Pfandrückgabe", quantity: pfandReturnsCount, item_price: 0, pfand_collected: 0, pfand_returned: pfandReturnsCount * PFAND_WERT, total_brutto: -(pfandReturnsCount * PFAND_WERT), payment_type: selectedPayType, tip_amount: 0, category: currentEvent, status: "0" });
                 if (transactionRows.length > 0) await supabaseClient.from('cocktail_transactions').insert(transactionRows);
                 closePayModal(); clearBasket();
             } catch (err) { alert(err.message); } finally { btn.disabled = false; }
@@ -471,138 +408,39 @@
         async function loadData() {
             if (!supabaseClient || !currentEvent) return;
             const { data: orders } = await supabaseClient.from('cocktail_orders').select('*').eq('category', currentEvent).eq('status', 'open').order('created_at', { ascending: true });
-            currentOrders = orders || []; renderBar();
-            document.getElementById('bar-count-badge').innerText = currentOrders.length;
-
+            currentOrders = orders || []; renderBar(); document.getElementById('bar-count-badge').innerText = currentOrders.length;
             const { data: historyOrders } = await supabaseClient.from('cocktail_orders').select('*').eq('category', currentEvent).order('created_at', { ascending: false }).limit(20);
             allHistoryOrders = historyOrders || [];
-
             const { data: txs } = await supabaseClient.from('cocktail_transactions').select('*').eq('category', currentEvent);
             globalTransactions = txs || [];
             if (document.getElementById('view-stats').classList.contains('active')) calculateAndRenderStats();
         }
 
         function startRealtimeSync() {
-            supabaseClient.channel('schema-changes-pro')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'cocktail_orders' }, () => loadData())
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'cocktail_transactions' }, () => loadData())
-                .subscribe();
+            supabaseClient.channel('schema-changes-pro').on('postgres_changes', { event: '*', schema: 'public', table: 'cocktail_orders' }, () => loadData()).on('postgres_changes', { event: '*', schema: 'public', table: 'cocktail_transactions' }, () => loadData()).subscribe();
         }
 
         function renderBar() {
-            const container = document.getElementById('orders-container');
-            if (currentOrders.length === 0) { container.innerHTML = '<p style="color:#718096; text-align:center; margin-top:30px; font-style:italic;">Keine offenen Bons.</p>'; return; }
-            container.innerHTML = '';
-            currentOrders.forEach(order => {
-                const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                container.innerHTML += `<div class="order-card"><div><b>${order.description}</b><div class="order-time">Um ${timeStr}</div></div><button class="btn-done" onclick="completeOrder(${order.id})">✔ Fertig</button></div>`;
-            });
+            const container = document.getElementById('orders-container'); if (currentOrders.length === 0) { container.innerHTML = '<p style="color:#718096; text-align:center; margin-top:30px; font-style:italic;">Keine offenen Bons.</p>'; return; }
+            container.innerHTML = ''; currentOrders.forEach(order => { const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); container.innerHTML += `<div class="order-card"><div><b>${order.description}</b><div class="order-time">Um ${timeStr}</div></div><button class="btn-done" onclick="completeOrder(${order.id})">✔ Fertig</button></div>`; });
         }
 
-        // STATISTIK LOGIK MIT GEWÜNSCHTEN STRICHLISTEN & RABATT-TRENNUNG
         function getAggregatedData() {
-            let salesBar = 0; let salesCard = 0; let tipBar = 0; let tipCard = 0;
-            let totalNetto = 0; let pfandInUmlauf = 0; let itemSummary = {};
-
+            let salesBar = 0; let salesCard = 0; let tipBar = 0; let tipCard = 0; let totalNetto = 0; let pfandInUmlauf = 0; let itemSummary = {};
             globalTransactions.forEach(tx => {
-                let isCard = tx.payment_type === 'card';
-                let disc = parseInt(tx.status) || 0;
-                
-                pfandInUmlauf += (tx.pfand_collected - tx.pfand_returned);
-                totalNetto += (tx.quantity * tx.item_price);
-
-                if(isCard) { salesCard += tx.total_brutto; tipCard += tx.tip_amount; }
-                else { salesBar += tx.total_brutto; tipBar += tx.tip_amount; }
-
+                let isCard = tx.payment_type === 'card'; let disc = parseInt(tx.status) || 0;
+                pfandInUmlauf += (tx.pfand_collected - tx.pfand_returned); totalNetto += (tx.quantity * tx.item_price);
+                if(isCard) { salesCard += tx.total_brutto; tipCard += tx.tip_amount; } else { salesBar += tx.total_brutto; tipBar += tx.tip_amount; }
                 if (tx.item_price > 0 || disc === 100) {
                     if (!itemSummary[tx.item_name]) itemSummary[tx.item_name] = { total: 0, r0: 0, r20: 0, r50: 0, r100: 0, rev: 0 };
-                    itemSummary[tx.item_name].total += tx.quantity;
-                    itemSummary[tx.item_name].rev += (tx.quantity * tx.item_price);
-                    
-                    if(disc === 20) itemSummary[tx.item_name].r20 += tx.quantity;
-                    else if(disc === 50) itemSummary[tx.item_name].r50 += tx.quantity;
-                    else if(disc === 100) itemSummary[tx.item_name].r100 += tx.quantity;
-                    else itemSummary[tx.item_name].r0 += tx.quantity;
+                    itemSummary[tx.item_name].total += tx.quantity; itemSummary[tx.item_name].rev += (tx.quantity * tx.item_price);
+                    if(disc === 20) itemSummary[tx.item_name].r20 += tx.quantity; else if(disc === 50) itemSummary[tx.item_name].r50 += tx.quantity; else if(disc === 100) itemSummary[tx.item_name].r100 += tx.quantity; else itemSummary[tx.item_name].r0 += tx.quantity;
                 }
             });
-
             return { salesBar, salesCard, tipBar, tipCard, totalNetto, pfandInUmlauf, itemSummary };
         }
 
         function calculateAndRenderStats() {
             let d = getAggregatedData();
-            document.getElementById('stat-bar').innerText = (d.salesBar + d.tipBar).toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-card').innerText = (d.salesCard + d.tipCard).toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-tip-bar').innerText = d.tipBar.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-tip-card').innerText = d.tipCard.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-netto').innerText = d.totalNetto.toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-pfand').innerText = d.pfandInUmlauf.toFixed(2).replace('.', ',') + " €";
-            
-            const tbody = document.getElementById('stats-table-body'); tbody.innerHTML = '';
-            for (let name in d.itemSummary) {
-                let s = d.itemSummary[name];
-                tbody.innerHTML += `<tr><td><b>${name}</b></td><td style="text-align:center;font-weight:bold;">${s.total}x</td><td>${s.r0}x</td><td>${s.r20}x</td><td>${s.r50}x</td><td style="color:var(--pfand-color);">${s.r100}x</td></tr>`;
-            }
-
-            const historyTbody = document.getElementById('history-table-body'); historyTbody.innerHTML = '';
-            allHistoryOrders.forEach(order => {
-                const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                const btn = order.status === 'open' ? `<span class="badge badge-open">⏳ In Mixe</span>` : `<button class="btn-reopen" onclick="reopenOrder(${order.id})">↩️ Reaktivieren</button>`;
-                historyTbody.innerHTML += `<tr><td>${timeStr}</td><td><b>${order.description}</b></td><td>${btn}<button class="btn-delete" onclick="deleteOrder(${order.id})">❌ Storno</button></td></tr>`;
-            });
-        }
-
-        // DAS COOLE EXCEL KASSENBLATT (CSV-FORMAT MIT SUMMENZEILEN OBEN)
-        function exportToCSV() {
-            if(globalTransactions.length === 0) { alert("Keine Umsätze vorhanden!"); return; }
-            let d = getAggregatedData();
-            
-            let csvContent = "\uFEFF"; // UTF-8 BOM für Excel-Kompatibilität
-            
-            // 1. Der Kassensturz (Zusammenfassungs-Block ganz oben)
-            csvContent += "=== EVENT-ZUSAMMENFASSUNG ===;;;;;;\r\n";
-            csvContent += `Umsatz BAR (Gesamt incl. Tip);${(d.salesBar + d.tipBar).toFixed(2).replace('.', ',')} €;;;;;\r\n`;
-            csvContent += `Umsatz KARTE / SUMUP (incl. Tip);${(d.salesCard + d.tipCard).toFixed(2).replace('.', ',')} €;;;;;\r\n`;
-            csvContent += `Reines Trinkgeld BAR;${d.tipBar.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
-            csvContent += `Reines Trinkgeld KARTE (SumUp);${d.tipCard.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
-            csvContent += `Reiner Getränkeumsatz (Netto);${d.totalNetto.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
-            csvContent += `Pfand-Geld im Umlauf;${d.pfandInUmlauf.toFixed(2).replace('.', ',')} €;;;;;\r\n\r\n`;
-
-            // 2. Die Strichliste & Rabatt-Verteilung
-            csvContent += "=== STRICHLISTE GETRÄNKE & RABATTE ===;;;;;;\r\n";
-            csvContent += "Getraenk;Verkauft Gesamt;Regulaer;20% Rabatt;50% Rabatt;100% Gratis (Crew);Umsatz rein\r\n";
-            for (let name in d.itemSummary) {
-                let s = d.itemSummary[name];
-                csvContent += `${name};${s.total}x;${s.r0}x;${s.r20}x;${s.r50}x;${s.r100}x;${s.rev.toFixed(2).replace('.', ',')} €\r\n`;
-            }
-            csvContent += "\r\n";
-
-            // 3. Einzel-Umsatzverlauf
-            csvContent += "=== EINZELNER TRANSMISSIONS-VERLAUF ===;;;;;;\r\n";
-            csvContent += "Uhrzeit;Getraenk;Menge;Netto-Preis;Pfand eingenommen;Pfand ausgegeben;Zahlungsart;Erfasstes Trinkgeld\r\n";
-            globalTransactions.forEach(tx => {
-                let time = new Date(tx.created_at).toLocaleTimeString();
-                let disc = parseInt(tx.status) || 0;
-                let nameWithDisc = tx.item_name + (disc > 0 ? ` (-${disc}%)` : "");
-                csvContent += `${time};${nameWithDisc};${tx.quantity};${tx.item_price.toFixed(2).replace('.', ',')} €;${tx.pfand_collected.toFixed(2).replace('.', ',')} €;${tx.pfand_returned.toFixed(2).replace('.', ',')} €;${tx.payment_type.toUpperCase()};${tx.tip_amount.toFixed(2).replace('.', ',')} €\r\n`;
-            });
-
-            // Download-Trigger
-            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            let link = document.createElement("a");
-            link.href = URL.createObjectURL(blob);
-            link.setAttribute("download", `Kassenblatt_${currentEvent.replace(/\s+/g, '_')}.csv`);
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
-
-        async function resetWholeEvent() {
-            if (confirm("Möchtest du das aktuelle Event wirklich unwiderruflich leeren?")) {
-                let pw = prompt("Gib 'LÖSCHEN' ein:"); if (pw !== "LÖSCHEN") return;
-                await supabaseClient.from('cocktail_orders').delete().eq('category', currentEvent);
-                await supabaseClient.from('cocktail_transactions').delete().eq('category', currentEvent);
-                loadData();
-            }
-        }
-    </script>
-</body>
-</html>
+            document.getElementById('stat-bar').innerText = (d.salesBar + d.tipBar).toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-card').innerText = (d.salesCard + d.tipCard).toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-tip-bar').innerText = d.tipBar.toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-tip-card').innerText = d.tipCard.toFixed(2).
