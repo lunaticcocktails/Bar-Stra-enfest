@@ -100,6 +100,7 @@
 </head>
 <body>
 
+    <!-- SETUP SCREEN -->
     <div id="setup-screen" class="setup-container">
         <div class="setup-title">Supabase Live-Verbindung</div>
         <p style="font-size: 0.85rem; color: #4a5568; line-height: 1.4; margin-bottom: 15px;">Trage deine Zugangsdaten ein.</p>
@@ -108,6 +109,7 @@
         <button class="btn-connect" onclick="initializeSupabase()">Verbindung prüfen</button>
     </div>
 
+    <!-- EVENT SELECTION SCREEN -->
     <div id="event-screen" class="setup-container" style="display:none; max-width: 600px;">
         <div class="setup-title">🌴 Event auswählen oder erstellen</div>
         <div class="form-group" style="display:flex; gap:8px; margin-bottom:20px;">
@@ -118,6 +120,7 @@
         <div id="event-list-container"></div>
     </div>
 
+    <!-- MAIN APP CONTENT -->
     <div id="app-content">
         <div style="background:#1a202c; color:white; padding:10px; text-align:center; font-weight:bold; border-radius:8px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
             <span>📍 Event: <span id="active-event-title-display">---</span></span>
@@ -130,6 +133,7 @@
             <button id="nav-stats" onclick="switchView('stats')">📊 Statistik</button>
         </div>
 
+        <!-- VIEW 1: KASSE -->
         <div id="view-kasse" class="view active">
             <div id="dynamic-menu-content"></div>
 
@@ -146,6 +150,7 @@
                 <button class="btn-submit" onclick="openPayModal()">✔️ Bezahlen & Senden</button>
             </div>
 
+            <!-- MENÜ VERWALTUNG -->
             <div class="admin-box">
                 <h4 style="margin:0 0 10px 0; color:#4a5568;">⚙️ Menü-Verwaltung</h4>
                 <div class="grid" style="grid-template-columns:1fr 1fr; gap:5px; margin-bottom:10px;">
@@ -168,6 +173,7 @@
             </div>
         </div>
 
+        <!-- POPUP MODALS -->
         <div id="item-modal" class="modal">
             <div class="modal-content">
                 <h3 id="item-modal-title" style="margin-top:0; border-left-color:#dd6b20;">Drink bearbeiten</h3>
@@ -202,11 +208,13 @@
             </div>
         </div>
 
+        <!-- VIEW 2: BAR -->
         <div id="view-bar" class="view">
             <h2>Offene Mix-Bestellungen</h2>
             <div id="orders-container"></div>
         </div>
 
+        <!-- VIEW 3: STATISTIK -->
         <div id="view-stats" class="view">
             <h2>Live-Auswertung</h2>
             <button class="btn-excel" onclick="exportToCSV()">📋 Kassenblatt als Excel (CSV) exportieren</button>
@@ -253,7 +261,7 @@
                 document.getElementById("setup-screen").style.display = "none";
                 document.getElementById("event-screen").style.display = "block";
                 loadEventList(); loadMenuFromDatabase();
-            } catch (e) { alert(e.message); }
+            } catch (error) { alert(error.message); }
         }
 
         async function loadEventList() {
@@ -263,7 +271,6 @@
             if(events.size === 0) { container.innerHTML = `<p style="color:#718096; font-style:italic;">Keine Events vorhanden.</p>`; return; }
             container.innerHTML = "";
             events.forEach(evt => {
-                // NEU: Row mit Delete-Knopf daneben
                 container.innerHTML += `
                     <div class="event-row" id="evt-row-${btoa(evt).replace(/=/g,'')}">
                         <button class="event-card-btn" onclick="selectEvent('${evt}')">🎉 ${evt} <span>Öffnen ➡️</span></button>
@@ -272,7 +279,6 @@
             });
         }
 
-        // NEU: Funktion um ein Event komplett aus der Cloud zu löschen
         async function deleteEventFromList(eventName) {
             if(!confirm(`Möchtest du das Event "${eventName}" wirklich komplett löschen? Alle Umsätze und Bestellungen davon werden unwiderruflich gelöscht!`)) return;
             try {
@@ -443,4 +449,33 @@
         function calculateAndRenderStats() {
             let d = getAggregatedData();
             document.getElementById('stat-bar').innerText = (d.salesBar + d.tipBar).toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-card').innerText = (d.salesCard + d.tipCard).toFixed(2).replace('.', ',') + " €";
-            document.getElementById('stat-tip-bar').innerText = d.tipBar.toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-tip-card').innerText = d.tipCard.toFixed(2).
+            document.getElementById('stat-tip-bar').innerText = d.tipBar.toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-tip-card').innerText = d.tipCard.toFixed(2).replace('.', ',') + " €";
+            document.getElementById('stat-netto').innerText = d.totalNetto.toFixed(2).replace('.', ',') + " €"; document.getElementById('stat-pfand').innerText = d.pfandInUmlauf.toFixed(2).replace('.', ',') + " €";
+            const tbody = document.getElementById('stats-table-body'); tbody.innerHTML = '';
+            for (let name in d.itemSummary) { let s = d.itemSummary[name]; tbody.innerHTML += `<tr><td><b>${name}</b></td><td style="text-align:center;font-weight:bold;">${s.total}x</td><td>${s.r0}x</td><td>${s.r20}x</td><td>${s.r50}x</td><td style="color:var(--pfand-color);">${s.r100}x</td></tr>`; }
+            const historyTbody = document.getElementById('history-table-body'); historyTbody.innerHTML = '';
+            allHistoryOrders.forEach(order => { const timeStr = new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}); const btn = order.status === 'open' ? `<span class="badge badge-open">⏳ In Mixe</span>` : `<button class="btn-reopen" onclick="reopenOrder(${order.id})">↩️ Reaktivieren</button>`; historyTbody.innerHTML += `<tr><td>${timeStr}</td><td><b>${order.description}</b></td><td>${btn}<button class="btn-delete" onclick="deleteOrder(${order.id})">❌ Storno</button></td></tr>`; });
+        }
+
+        function exportToCSV() {
+            if(globalTransactions.length === 0) return; let d = getAggregatedData(); let csvContent = "\uFEFF";
+            csvContent += "=== EVENT-ZUSAMMENFASSUNG ===;;;;;;\r\n";
+            csvContent += `Umsatz BAR (Gesamt incl. Tip);${(d.salesBar + d.tipBar).toFixed(2).replace('.', ',')} €;;;;;\r\n`;
+            csvContent += `Umsatz KARTE / SUMUP (incl. Tip);${(d.salesCard + d.tipCard).toFixed(2).replace('.', ',')} €;;;;;\r\n`;
+            csvContent += `Reines Trinkgeld BAR;${d.tipBar.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
+            csvContent += `Reines Trinkgeld KARTE (SumUp);${d.tipCard.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
+            csvContent += `Reiner Getraenkeumsatz (Netto);${d.totalNetto.toFixed(2).replace('.', ',')} €;;;;;\r\n`;
+            csvContent += `Pfand-Geld im Umlauf;${d.pfandInUmlauf.toFixed(2).replace('.', ',')} €;;;;;\r\n\r\n`;
+            csvContent += "=== STRICHLISTE GETRÄNKE & RABATTE ===;;;;;;\r\n";
+            csvContent += "Getraenk;Verkauft Gesamt;Regulaer;20% Rabatt;50% Rabatt;100% Gratis (Crew);Umsatz rein\r\n";
+            for (let name in d.itemSummary) { let s = d.itemSummary[name]; csvContent += `${name};${s.total}x;${s.r0}x;${s.r20}x;${s.r50}x;${s.r100}x;${s.rev.toFixed(2).replace('.', ',')} €\r\n`; }
+            csvContent += "\r\n=== EINZELNER TRANSMISSIONS-VERLAUF ===;;;;;;\r\n";
+            csvContent += "Uhrzeit;Getraenk;Menge;Netto-Preis;Pfand eingenommen;Pfand ausgegeben;Zahlungsart;Erfasstes Trinkgeld\r\n";
+            globalTransactions.forEach(tx => { let time = new Date(tx.created_at).toLocaleTimeString(); let disc = parseInt(tx.status) || 0; csvContent += `${time};${tx.item_name + (disc > 0 ? ` (-${disc}%)` : "")};${tx.quantity};${tx.item_price.toFixed(2).replace('.', ',')} €;${tx.pfand_collected.toFixed(2).replace('.', ',')} €;${tx.pfand_returned.toFixed(2).replace('.', ',')} €;${tx.payment_type.toUpperCase()};${tx.tip_amount.toFixed(2).replace('.', ',')} €\r\n`; });
+            let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.setAttribute("download", `Kassenblatt_${currentEvent.replace(/\s+/g, '_')}.csv`); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        }
+
+        async function resetWholeEvent() { if (confirm("Event leeren?")) { let pw = prompt("Gib 'LÖSCHEN' ein:"); if (pw !== "LÖSCHEN") return; await supabaseClient.from('cocktail_orders').delete().eq('category', currentEvent); await supabaseClient.from('cocktail_transactions').delete().eq('category', currentEvent); loadData(); } }
+    </script>
+</body>
+</html>
